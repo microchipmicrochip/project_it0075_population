@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Predictive Analysis Methodology</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background: #f4f6fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 700px;
+            margin: 48px auto 0 auto;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 4px 24px rgba(25, 118, 210, 0.10);
+            border: 1px solid #e3eaf2;
+            padding: 36px 32px 32px 32px;
+        }
+        h2 {
+            color: #1976d2;
+            margin-bottom: 18px;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+        }
+        p, ul {
+            color: #222;
+            font-size: 1.08rem;
+            line-height: 1.7;
+        }
+        code {
+            background: #f4f6fa;
+            color: #d32f2f;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 1.01rem;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 24px;
+            color: #1976d2;
+            text-decoration: none;
+            font-size: 1.05rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>How Predictive Analysis is Calculated</h2>
+        <p>
+            The predictive chart uses <b>simple linear regression</b> to forecast future population values for each region or province. This method fits a straight line to the historical data and extends it to predict future values.
+        </p>
+        <ul>
+            <li>For each region or province, the chart takes the historical population data (e.g., 2020–2025).</li>
+            <li>It converts the years to numbers (e.g., 2020, 2021, ...).</li>
+            <li>It fits a line <code>y = mx + b</code> using the least squares method, where <code>y</code> is population and <code>x</code> is year.</li>
+            <li>The slope (<code>m</code>) and intercept (<code>b</code>) are calculated from the data.</li>
+            <li>The model predicts future values by extending the line for the chosen number of years ahead.</li>
+        </ul>
+        <p>
+            <b>Linear Regression Formula:</b><br>
+            <code>y = m x + b</code><br>
+            where<br>
+            <code>m = (N Σxy - Σx Σy) / (N Σx² - (Σx)²)</code><br>
+            <code>b = (Σy - m Σx) / N</code><br>
+            <i>N</i> is the number of data points, <i>x</i> is year, <i>y</i> is population.
+        </p>
+        <p>
+            This approach is simple and works well for data with a roughly linear trend. For more advanced forecasting, more complex models can be used.
+        </p>
+        <a class="back-link" href="../navigations/predictive-navigation.html">&larr; Back to Predictive Navigation</a>
+    </div>
+</body>
+</html>

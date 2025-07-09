@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Population Area Chart</title>
+    <title>Population Predictive Chart</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -36,7 +36,7 @@
             min-width: 120px;
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
-        #areaChartBox {
+        #predictiveChartBox {
             width: 90vw;
             max-width: 1000px;
             margin: 0 auto 24px auto;
@@ -56,13 +56,13 @@
             font-size: 1.08rem;
         }
         @media (max-width: 700px) {
-            #areaChartBox { width: 98vw; }
+            #predictiveChartBox { width: 98vw; }
             .controls { flex-direction: column; gap: 6px; }
         }
     </style>
 </head>
 <body>
-    <h2>Population Area Chart</h2>
+    <h2>Population Predictive Chart</h2>
     <div class="controls">
         <label for="modeSelect">Mode:</label>
         <select id="modeSelect">
@@ -77,11 +77,17 @@
             <label for="provinceSelect">Province:</label>
             <select id="provinceSelect"></select>
         </span>
+        <label for="yearsAhead" style="margin-left:10px;">Forecast Years:</label>
+        <select id="yearsAhead">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+        </select>
     </div>
-    <div id="areaChartBox">
-        <canvas id="areaChart" width="1000" height="480"></canvas>
+    <div id="predictiveChartBox">
+        <canvas id="predictiveChart" width="1000" height="480"></canvas>
     </div>
-    <a id="backLink" href="../navigations/chart-navigation.html">&larr; Back to Chart Navigation</a>
+    <a id="backLink" href="../navigations/predictive-navigation.html">&larr; Back to Predictive Navigation</a>
     <script src="../papaparse-loader.js"></script>
     <script>
     function waitForPapaParse(callback) {
@@ -95,7 +101,7 @@
         let provinceData = {};
         let regionSet = new Set();
         let yearColumns = [];
-        let areaChart = null;
+        let predictiveChart = null;
         function populateRegionDropdown() {
             const regionSelect = document.getElementById('regionSelect');
             regionSelect.innerHTML = '';
@@ -120,47 +126,78 @@
                 provinceSelect.appendChild(opt);
             });
         }
-        function updateAreaChart() {
+        function linearRegression(x, y) {
+            const n = x.length;
+            const sumX = x.reduce((a, b) => a + b, 0);
+            const sumY = y.reduce((a, b) => a + b, 0);
+            const sumXY = x.reduce((acc, val, i) => acc + val * y[i], 0);
+            const sumXX = x.reduce((acc, val) => acc + val * val, 0);
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            return { slope, intercept };
+        }
+        function updatePredictiveChart() {
             const mode = document.getElementById('modeSelect').value;
-            const ctx = document.getElementById('areaChart').getContext('2d');
-            if (areaChart) areaChart.destroy();
+            const ctx = document.getElementById('predictiveChart').getContext('2d');
+            if (predictiveChart) predictiveChart.destroy();
+            const yearsAhead = parseInt(document.getElementById('yearsAhead').value);
+            // Get years as numbers (e.g., 2020, 2021, ...)
+            const yearNums = yearColumns.map(y => 2000 + parseInt(y.split('-')[1]));
+            const lastYear = yearNums[yearNums.length-1];
+            const forecastYears = Array.from({length: yearsAhead}, (_, i) => lastYear + i + 1);
+            const allYears = yearNums.concat(forecastYears);
             if (mode === 'region') {
                 document.getElementById('regionControl').style.display = 'inline';
                 document.getElementById('provinceControl').style.display = 'none';
                 const region = document.getElementById('regionSelect').value;
-                // For each province in region, plot as a dataset
-                const provinces = Object.values(provinceData)
-                    .filter(row => row.region === region)
-                    .map(row => row.province)
-                    .sort();
-                const datasets = provinces.map((province, idx) => {
-                    const row = provinceData[province];
-                    return {
-                        label: province,
-                        data: yearColumns.map(year => row && row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0),
-                        fill: true,
-                        backgroundColor: `hsla(${(idx*360/provinces.length)},70%,60%,0.25)`,
-                        borderColor: `hsl(${(idx*360/provinces.length)},70%,60%)`,
-                        borderWidth: 2,
-                        pointRadius: 2
-                    };
+                // Sum population for each year for the region
+                const y = yearColumns.map(year => {
+                    let total = 0;
+                    Object.values(provinceData).forEach(row => {
+                        if (row.region === region && row[year] && !isNaN(Number(row[year]))) {
+                            total += Number(row[year]);
+                        }
+                    });
+                    return total;
                 });
-                areaChart = new Chart(ctx, {
+                // Linear regression
+                const reg = linearRegression(yearNums, y);
+                const forecast = forecastYears.map(yNum => reg.slope * yNum + reg.intercept);
+                predictiveChart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: yearColumns,
-                        datasets: datasets
+                        labels: allYears,
+                        datasets: [
+                            {
+                                label: 'Actual',
+                                data: y.concat(Array(yearsAhead).fill(null)),
+                                borderColor: '#1976d2',
+                                backgroundColor: 'rgba(25,118,210,0.12)',
+                                borderWidth: 3,
+                                pointRadius: 3,
+                                spanGaps: true
+                            },
+                            {
+                                label: 'Predicted',
+                                data: Array(y.length).fill(null).concat(forecast),
+                                borderColor: '#d32f2f',
+                                backgroundColor: 'rgba(211,47,47,0.12)',
+                                borderDash: [8,4],
+                                borderWidth: 3,
+                                pointRadius: 3,
+                                spanGaps: true
+                            }
+                        ]
                     },
                     options: {
                         responsive: false,
                         plugins: {
-                            legend: { position: 'right', labels: { color: '#1976d2', font: { size: 13 } } },
+                            legend: { position: 'top', labels: { color: '#1976d2', font: { size: 13 } } },
                             tooltip: { enabled: true }
                         },
-                        elements: { line: { tension: 0.3 } },
                         scales: {
-                            x: { ticks: { color: '#1976d2', font: { size: 13 } } },
-                            y: { beginAtZero: true, ticks: { color: '#388e3c', font: { size: 13 } } }
+                            x: { title: { display: true, text: 'Year' }, ticks: { color: '#1976d2', font: { size: 13 } } },
+                            y: { beginAtZero: true, title: { display: true, text: 'Population' }, ticks: { color: '#388e3c', font: { size: 13 } } }
                         }
                     }
                 });
@@ -171,31 +208,44 @@
                 populateProvinceDropdown(region);
                 const province = document.getElementById('provinceSelect').value;
                 const row = provinceData[province];
-                const dataset = {
-                    label: province,
-                    data: yearColumns.map(year => row && row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0),
-                    fill: true,
-                    backgroundColor: 'rgba(25, 118, 210, 0.25)',
-                    borderColor: '#1976d2',
-                    borderWidth: 2,
-                    pointRadius: 3
-                };
-                areaChart = new Chart(ctx, {
+                const y = yearColumns.map(year => row && row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0);
+                const reg = linearRegression(yearNums, y);
+                const forecast = forecastYears.map(yNum => reg.slope * yNum + reg.intercept);
+                predictiveChart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: yearColumns,
-                        datasets: [dataset]
+                        labels: allYears,
+                        datasets: [
+                            {
+                                label: 'Actual',
+                                data: y.concat(Array(yearsAhead).fill(null)),
+                                borderColor: '#1976d2',
+                                backgroundColor: 'rgba(25,118,210,0.12)',
+                                borderWidth: 3,
+                                pointRadius: 3,
+                                spanGaps: true
+                            },
+                            {
+                                label: 'Predicted',
+                                data: Array(y.length).fill(null).concat(forecast),
+                                borderColor: '#d32f2f',
+                                backgroundColor: 'rgba(211,47,47,0.12)',
+                                borderDash: [8,4],
+                                borderWidth: 3,
+                                pointRadius: 3,
+                                spanGaps: true
+                            }
+                        ]
                     },
                     options: {
                         responsive: false,
                         plugins: {
-                            legend: { position: 'right', labels: { color: '#1976d2', font: { size: 13 } } },
+                            legend: { position: 'top', labels: { color: '#1976d2', font: { size: 13 } } },
                             tooltip: { enabled: true }
                         },
-                        elements: { line: { tension: 0.3 } },
                         scales: {
-                            x: { ticks: { color: '#1976d2', font: { size: 13 } } },
-                            y: { beginAtZero: true, ticks: { color: '#388e3c', font: { size: 13 } } }
+                            x: { title: { display: true, text: 'Year' }, ticks: { color: '#1976d2', font: { size: 13 } } },
+                            y: { beginAtZero: true, title: { display: true, text: 'Population' }, ticks: { color: '#388e3c', font: { size: 13 } } }
                         }
                     }
                 });
@@ -205,9 +255,9 @@
             if (document.getElementById('modeSelect').value === 'province') {
                 populateProvinceDropdown(this.value);
             }
-            updateAreaChart();
+            updatePredictiveChart();
         });
-        document.getElementById('provinceSelect').addEventListener('change', updateAreaChart);
+        document.getElementById('provinceSelect').addEventListener('change', updatePredictiveChart);
         document.getElementById('modeSelect').addEventListener('change', function() {
             const mode = this.value;
             if (mode === 'province') {
@@ -216,8 +266,9 @@
             } else {
                 document.getElementById('provinceControl').style.display = 'none';
             }
-            updateAreaChart();
+            updatePredictiveChart();
         });
+        document.getElementById('yearsAhead').addEventListener('change', updatePredictiveChart);
         // Load CSV data
         Papa.parse('../province-data.csv', {
             header: true,
@@ -244,7 +295,7 @@
                 populateRegionDropdown();
                 document.getElementById('regionSelect').value = Array.from(regionSet)[0];
                 populateProvinceDropdown(document.getElementById('regionSelect').value);
-                updateAreaChart();
+                updatePredictiveChart();
             }
         });
     });
