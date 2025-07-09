@@ -1,0 +1,82 @@
+province,region,Jul-20,Jul-21,Jul-22,Jul-23,Jul-24
+Abra,CAR – Cordillera Administrative Region,482,500,520,540,560
+AgusandelNorte,CARAGA Region,915,930,950,970,990
+AgusandelSur,CARAGA Region,237,250,260,270,280
+Aklan,Region VI – Western Visayas,768,780,790,800,810
+Albay,Region V – Bicol Region,53,60,65,70,75
+Antique,Region VI – Western Visayas,601,610,620,630,640
+Apayao,CAR – Cordillera Administrative Region,329,340,350,360,370
+Aurora,Region III – Central Luzon,874,880,890,900,910
+Basilan,BARMM – Bangsamoro Autonomous Region in Muslim Mindanao,112,120,130,140,150
+Bataan,Region III – Central Luzon,754,760,770,780,790
+Batanes,Region II – Cagayan Valley,321,330,340,350,360
+Batangas,Region IV‑A – CALABARZON,999,1010,1020,1030,1040
+Benguet,CAR – Cordillera Administrative Region,210,220,230,240,250
+Biliran,Region VIII – Eastern Visayas,587,590,600,610,620
+Bohol,Region VII – Central Visayas,76,80,85,90,95
+Bukidnon,Region X – Northern Mindanao,444,450,460,470,480
+Bulacan,Region III – Central Luzon,823,830,840,850,860
+Cagayan,Region II – Cagayan Valley,365,370,380,390,400
+CamarinesNorte,Region V – Bicol Region,701,710,720,730,740
+CamSur,Region V – Bicol Region,158,789,123,456,987
+Camiguin,Region X – Northern Mindanao,927,654,321,111,222
+Capiz,Region VI – Western Visayas,492,333,444,555,666
+Catanduanes,Region V – Bicol Region,84,777,888,999,111
+Cavite,Region IV‑A – CALABARZON,613,222,333,444,555
+Cebu,Region VII – Central Visayas,305,666,777,888,999
+CompostelaValley,Region XI – Davao Region,789,123,234,345,456
+DavaodelNorte,Region XI – Davao Region,56,567,678,789,890
+DavaodelSur,Region XI – Davao Region,1000,901,802,703,604
+DavaoOriental,Region XI – Davao Region,412,513,614,715,816
+DinagatIslands,CARAGA Region,234,135,246,357,468
+EasternSamar,Region VIII – Eastern Visayas,678,579,480,381,282
+Guimaras,Region VI – Western Visayas,59,160,261,362,463
+Ifugao,CAR – Cordillera Administrative Region,841,942,843,744,645
+IlocosNorte,Region I – Ilocos Region,390,491,592,693,794
+IlocosSur,Region I – Ilocos Region,721,822,923,124,225
+Iloilo,Region VI – Western Visayas,184,285,386,487,588
+Isabela,Region II – Cagayan Valley,563,664,765,866,967
+Kalinga,CAR – Cordillera Administrative Region,97,198,299,400,501
+LaUnion,Region I – Ilocos Region,846,947,148,249,350
+Laguna,Region IV‑A – CALABARZON,392,493,594,695,796
+LanaodelNorte,Region X – Northern Mindanao,278,379,480,581,682
+LanaodelSur,BARMM – Bangsamoro Autonomous Region in Muslim Mindanao,615,716,817,918,19
+Leyte,Region VIII – Eastern Visayas,501,602,703,804,905
+Maguindanao,BARMM – Bangsamoro Autonomous Region in Muslim Mindanao,333,434,535,636,737
+Marinduque,MIMAROPA Region,890,991,92,193,294
+Masbate,Region V – Bicol Region,246,347,448,549,650
+Metropolitan Manila,NCR – National Capital Region,777,878,979,80,181
+MisamisOccidental,Region X – Northern Mindanao,119,220,321,422,523
+MisamisOriental,Region X – Northern Mindanao,951,52,153,254,355
+MountainProvince,CAR – Cordillera Administrative Region,68,169,270,371,472
+NegrosOccidental,Region VI – Western Visayas,530,631,732,833,934
+NegrosOriental,Region VII – Central Visayas,802,903,4,105,206
+NorthCotabato,Region XII – SOCCSKSARGEN,143,244,345,446,547
+NorthernSamar,Region VIII – Eastern Visayas,364,465,566,667,768
+NuevaEcija,Region III – Central Luzon,285,386,487,588,689
+NuevaVizcaya,Region II – Cagayan Valley,900,1,102,203,304
+OccidentalMindoro,MIMAROPA Region,222,323,424,525,626
+OrientalMindoro,MIMAROPA Region,488,589,690,791,892
+Palawan,MIMAROPA Region,355,456,557,658,759
+Pampanga,Region III – Central Luzon,667,768,869,970,71
+Pangasinan,Region I – Ilocos Region,504,605,706,807,908
+Quezon,Region IV‑A – CALABARZON,211,312,413,514,615
+Quirino,Region II – Cagayan Valley,973,74,175,276,377
+Rizal,Region IV‑A – CALABARZON,36,137,238,339,440
+Romblon,MIMAROPA Region,690,791,892,993,94
+Samar,Region VIII – Eastern Visayas,427,528,629,730,831
+Sarangani,Region XII – SOCCSKSARGEN,561,662,763,864,965
+Siquijor,Region VII – Central Visayas,888,989,90,191,292
+Sorsogon,Region V – Bicol Region,149,250,351,452,553
+SouthCotabato,Region XII – SOCCSKSARGEN,991,92,193,294,395
+SouthernLeyte,Region VIII – Eastern Visayas,273,374,475,576,677
+SultanKudarat,Region XII – SOCCSKSARGEN,384,485,586,687,788
+Sulu,BARMM – Bangsamoro Autonomous Region in Muslim Mindanao,520,621,722,823,924
+SurigaodelNorte,CARAGA Region,417,518,619,720,821
+SurigaodelSur,CARAGA Region,232,333,434,535,636
+Tarlac,Region III – Central Luzon,601,702,803,904,5
+Tawi-Tawi,BARMM – Bangsamoro Autonomous Region in Muslim Mindanao,110,211,312,413,514
+Zambales,Region III – Central Luzon,799,900,1,102,203
+ZamboangadelNorte,Region IX – Zamboanga Peninsula,347,448,549,650,751
+ZamboangadelSur,Region IX – Zamboanga Peninsula,965,66,167,268,369
+ZamboangaSibugay,Region IX – Zamboanga Peninsula,251,352,453,554,655
