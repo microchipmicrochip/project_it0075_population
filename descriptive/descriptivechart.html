@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Population Descriptive Chart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background: #f4f6fa;
+            margin: 0;
+            padding: 0;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 24px;
+            color: #1976d2;
+            letter-spacing: 1px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0 10px 0;
+            gap: 10px;
+        }
+        select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #b0bec5;
+            font-size: 1rem;
+            background: #fff;
+            color: #333;
+            min-width: 120px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        #descriptiveChartBox {
+            width: 90vw;
+            max-width: 1000px;
+            margin: 0 auto 24px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(25, 118, 210, 0.08);
+            border: 1px solid #e3eaf2;
+            padding: 32px 16px 24px 16px;
+        }
+        #backLink {
+            display: block;
+            margin: 18px auto 0 auto;
+            text-align: center;
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1.08rem;
+        }
+        @media (max-width: 700px) {
+            #descriptiveChartBox { width: 98vw; }
+            .controls { flex-direction: column; gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <h2>Population Descriptive Chart</h2>
+    <div class="controls">
+        <label for="descChartType">Chart Type:</label>
+        <select id="descChartType">
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+            <option value="pie">Pie</option>
+            <option value="doughnut">Doughnut</option>
+            <option value="area">Area</option>
+            <option value="radar">Radar</option>
+            <option value="polarArea">Polar Area</option>
+            <option value="bubble">Bubble</option>
+            <option value="scatter">Scatter</option>
+            <option value="horizontalBar">Horizontal Bar</option>
+            <option value="stackedBar">Stacked Bar</option>
+        </select>
+        <label for="descRegion" style="margin-left:10px;">Region:</label>
+        <select id="descRegion"></select>
+        <span id="descProvinceControl" style="display:none;">
+            <label for="descProvince">Province:</label>
+            <select id="descProvince"></select>
+        </span>
+    </div>
+    <div id="descriptiveChartBox">
+        <canvas id="descriptiveChart" width="1000" height="480"></canvas>
+    </div>
+    <a id="backLink" href="../navigations/chart-navigation.html">&larr; Back to Descriptive Dashboard</a>
+    <script src="../papaparse-loader.js"></script>
+    <script>
+    function waitForPapaParse(callback) {
+        if (window.papaParseLoaded && window.Papa) {
+            callback();
+        } else {
+            setTimeout(() => waitForPapaParse(callback), 50);
+        }
+    }
+    waitForPapaParse(function() {
+        let provinceData = {};
+        let regionSet = new Set();
+        let yearColumns = [];
+        let descriptiveChart = null;
+        function populateRegionDropdown() {
+            const regionSelect = document.getElementById('descRegion');
+            regionSelect.innerHTML = '';
+            Array.from(regionSet).sort().forEach(region => {
+                const opt = document.createElement('option');
+                opt.value = region;
+                opt.textContent = region;
+                regionSelect.appendChild(opt);
+            });
+        }
+        function populateProvinceDropdown(region) {
+            const provinceSelect = document.getElementById('descProvince');
+            provinceSelect.innerHTML = '';
+            const provinces = Object.values(provinceData)
+                .filter(row => row.region === region)
+                .map(row => row.province)
+                .sort();
+            provinces.forEach(province => {
+                const opt = document.createElement('option');
+                opt.value = province;
+                opt.textContent = province;
+                provinceSelect.appendChild(opt);
+            });
+        }
+        function updateDescriptiveChart() {
+            const chartType = document.getElementById('descChartType').value;
+            const region = document.getElementById('descRegion').value;
+            const provinceControl = document.getElementById('descProvinceControl');
+            let showProvince = false;
+            // Show province selector for province-level charts
+            if (["bar","line","area","radar","bubble","scatter"].includes(chartType)) {
+                showProvince = true;
+            }
+            provinceControl.style.display = showProvince ? 'inline' : 'none';
+            let province = null;
+            if (showProvince) {
+                province = document.getElementById('descProvince').value;
+            }
+            const ctx = document.getElementById('descriptiveChart').getContext('2d');
+            if (descriptiveChart) descriptiveChart.destroy();
+            // Prepare data
+            let labels = yearColumns.map(y => 2000 + parseInt(y.split('-')[1]));
+            let datasets = [];
+            if (showProvince && province) {
+                // Province-level chart
+                const row = provinceData[province];
+                const data = yearColumns.map(year => row && row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0);
+                datasets.push({
+                    label: province,
+                    data: data,
+                    backgroundColor: '#1976d2',
+                    borderColor: '#1976d2',
+                    fill: chartType === 'area',
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    spanGaps: true
+                });
+            } else if (["pie","doughnut","polarArea"].includes(chartType)) {
+                // Region-level summary for a single year (latest)
+                const year = yearColumns[yearColumns.length-1];
+                const provinces = Object.values(provinceData).filter(row => row.region === region);
+                labels = provinces.map(row => row.province);
+                const data = provinces.map(row => row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0);
+                datasets.push({
+                    label: region + ' (' + year + ")",
+                    data: data,
+                    backgroundColor: labels.map((_,i) => `hsl(${(i*360/labels.length)},70%,60%)`)
+                });
+            } else if (chartType === 'stackedBar') {
+                // Stacked bar: all provinces in region, years as x
+                const provinces = Object.values(provinceData).filter(row => row.region === region).map(row => row.province).sort();
+                datasets = provinces.map((province, idx) => {
+                    const row = provinceData[province];
+                    return {
+                        label: province,
+                        data: yearColumns.map(year => row && row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0),
+                        backgroundColor: `hsl(${(idx*360/provinces.length)},70%,60%)`,
+                        borderWidth: 1
+                    };
+                });
+            }
+            // Chart.js type mapping
+            let chartjsType = chartType;
+            if (chartType === 'area') chartjsType = 'line';
+            if (chartType === 'horizontalBar') chartjsType = 'bar';
+            if (chartType === 'stackedBar') chartjsType = 'bar';
+            // Chart options
+            let options = {
+                responsive: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#1976d2', font: { size: 13 } } },
+                    tooltip: { enabled: true }
+                },
+                scales: {
+                    x: { title: { display: true, text: showProvince ? 'Year' : 'Province' }, ticks: { color: '#1976d2', font: { size: 13 } } },
+                    y: { beginAtZero: true, title: { display: true, text: 'Population' }, ticks: { color: '#388e3c', font: { size: 13 } } }
+                }
+            };
+            if (chartType === 'stackedBar') {
+                options.scales.x.stacked = true;
+                options.scales.y.stacked = true;
+            }
+            if (["pie","doughnut","polarArea"].includes(chartType)) {
+                delete options.scales;
+            }
+            descriptiveChart = new Chart(ctx, {
+                type: chartjsType,
+                data: { labels: labels, datasets: datasets },
+                options: options
+            });
+        }
+        document.getElementById('descRegion').addEventListener('change', function() {
+            populateProvinceDropdown(this.value);
+            updateDescriptiveChart();
+        });
+        document.getElementById('descProvince').addEventListener('change', updateDescriptiveChart);
+        document.getElementById('descChartType').addEventListener('change', function() {
+            const chartType = this.value;
+            if (["bar","line","area","radar","bubble","scatter"].includes(chartType)) {
+                document.getElementById('descProvinceControl').style.display = 'inline';
+                populateProvinceDropdown(document.getElementById('descRegion').value);
+            } else {
+                document.getElementById('descProvinceControl').style.display = 'none';
+            }
+            updateDescriptiveChart();
+        });
+        // Load CSV data
+        Papa.parse('../province-data.csv', {
+            header: true,
+            download: true,
+            complete: function(results) {
+                provinceData = {};
+                regionSet = new Set();
+                yearColumns = [];
+                if (results.meta && results.meta.fields) {
+                    yearColumns = results.meta.fields.filter(f => /^Jul-\d{2}$/.test(f));
+                }
+                // Always ensure Jul-25 is present and at the end
+                if (!yearColumns.includes('Jul-25')) {
+                    yearColumns.push('Jul-25');
+                } else {
+                    yearColumns = yearColumns.filter(y => y !== 'Jul-25').concat(['Jul-25']);
+                }
+                results.data.forEach(row => {
+                    if (row.province) {
+                        provinceData[row.province.trim()] = row;
+                        if (row.region) regionSet.add(row.region.trim());
+                    }
+                });
+                populateRegionDropdown();
+                document.getElementById('descRegion').value = Array.from(regionSet)[0];
+                populateProvinceDropdown(document.getElementById('descRegion').value);
+                updateDescriptiveChart();
+            }
+        });
+    });
+    </script>
+</body>
+</html>

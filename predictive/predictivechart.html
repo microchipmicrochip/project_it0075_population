@@ -77,6 +77,15 @@
             <label for="provinceSelect">Province:</label>
             <select id="provinceSelect"></select>
         </span>
+        <label for="chartType" style="margin-left:10px;">Chart Type:</label>
+        <select id="chartType">
+            <option value="linear" selected>Linear Regression</option>
+            <option value="exponential">Exponential Trend</option>
+            <option value="polynomial">Polynomial Regression</option>
+            <option value="movingavg">Moving Average</option>
+            <option value="interval">Prediction Interval</option>
+            <option value="compare">Comparison</option>
+        </select>
         <label for="yearsAhead" style="margin-left:10px;">Forecast Years:</label>
         <select id="yearsAhead">
             <option value="3">3</option>
@@ -126,6 +135,7 @@
                 provinceSelect.appendChild(opt);
             });
         }
+        // Linear Regression
         function linearRegression(x, y) {
             const n = x.length;
             const sumX = x.reduce((a, b) => a + b, 0);
@@ -136,7 +146,116 @@
             const intercept = (sumY - slope * sumX) / n;
             return { slope, intercept };
         }
+        // Exponential Regression (y = a * e^(b*x))
+        function exponentialRegression(x, y) {
+            const n = x.length;
+            const sumX = x.reduce((a, b) => a + b, 0);
+            const sumY = y.reduce((a, b) => a + Math.log(b), 0);
+            const sumXX = x.reduce((a, b) => a + b * b, 0);
+            const sumXY = x.reduce((a, b, i) => a + b * Math.log(y[i]), 0);
+            const b = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const a = Math.exp((sumY - b * sumX) / n);
+            return { a, b };
+        }
+        // Polynomial Regression (degree 2)
+        function polynomialRegression(x, y) {
+            // Fit y = ax^2 + bx + c
+            const n = x.length;
+            let sumX = 0, sumX2 = 0, sumX3 = 0, sumX4 = 0;
+            let sumY = 0, sumXY = 0, sumX2Y = 0;
+            for (let i = 0; i < n; i++) {
+                sumX += x[i];
+                sumX2 += x[i] * x[i];
+                sumX3 += x[i] * x[i] * x[i];
+                sumX4 += x[i] * x[i] * x[i] * x[i];
+                sumY += y[i];
+                sumXY += x[i] * y[i];
+                sumX2Y += x[i] * x[i] * y[i];
+            }
+            const A = [
+                [n, sumX, sumX2],
+                [sumX, sumX2, sumX3],
+                [sumX2, sumX3, sumX4]
+            ];
+            const B = [sumY, sumXY, sumX2Y];
+            // Solve Ax = B
+            function solve(A, B) {
+                // Gaussian elimination
+                const n = B.length;
+                for (let i = 0; i < n; i++) {
+                    // Search for maximum in this column
+                    let maxEl = Math.abs(A[i][i]);
+                    let maxRow = i;
+                    for (let k = i + 1; k < n; k++) {
+                        if (Math.abs(A[k][i]) > maxEl) {
+                            maxEl = Math.abs(A[k][i]);
+                            maxRow = k;
+                        }
+                    }
+                    // Swap maximum row with current row (column by column)
+                    for (let k = i; k < n; k++) {
+                        let tmp = A[maxRow][k];
+                        A[maxRow][k] = A[i][k];
+                        A[i][k] = tmp;
+                    }
+                    let tmp = B[maxRow];
+                    B[maxRow] = B[i];
+                    B[i] = tmp;
+                    // Make all rows below this one 0 in current column
+                    for (let k = i + 1; k < n; k++) {
+                        let c = -A[k][i] / A[i][i];
+                        for (let j = i; j < n; j++) {
+                            if (i === j) {
+                                A[k][j] = 0;
+                            } else {
+                                A[k][j] += c * A[i][j];
+                            }
+                        }
+                        B[k] += c * B[i];
+                    }
+                }
+                // Solve equation Ax = B for an upper triangular matrix A
+                const x = Array(n).fill(0);
+                for (let i = n - 1; i >= 0; i--) {
+                    x[i] = B[i] / A[i][i];
+                    for (let k = i - 1; k >= 0; k--) {
+                        B[k] -= A[k][i] * x[i];
+                    }
+                }
+                return x;
+            }
+            const [c, b, a] = solve(A, B);
+            return { a, b, c };
+        }
+        // Moving Average
+        function movingAverage(y, windowSize) {
+            const result = [];
+            for (let i = 0; i < y.length; i++) {
+                const start = Math.max(0, i - windowSize + 1);
+                const window = y.slice(start, i + 1);
+                result.push(window.reduce((a, b) => a + b, 0) / window.length);
+            }
+            return result;
+        }
+        // Prediction Interval (95% confidence, linear regression)
+        function predictionInterval(x, y, forecastX) {
+            const n = x.length;
+            const reg = linearRegression(x, y);
+            const yHat = x.map(xi => reg.slope * xi + reg.intercept);
+            const residuals = y.map((yi, i) => yi - yHat[i]);
+            const s2 = residuals.reduce((a, b) => a + b * b, 0) / (n - 2);
+            const meanX = x.reduce((a, b) => a + b, 0) / n;
+            const sumXX = x.reduce((a, b) => a + Math.pow(b - meanX, 2), 0);
+            const intervals = forecastX.map(xf => {
+                const yPred = reg.slope * xf + reg.intercept;
+                const t = 2; // approx for 95% CI
+                const se = Math.sqrt(s2 * (1 + 1 / n + Math.pow(xf - meanX, 2) / sumXX));
+                return [yPred - t * se, yPred + t * se];
+            });
+            return intervals;
+        }
         function updatePredictiveChart() {
+            const chartType = document.getElementById('chartType').value;
             const mode = document.getElementById('modeSelect').value;
             const ctx = document.getElementById('predictiveChart').getContext('2d');
             if (predictiveChart) predictiveChart.destroy();
@@ -160,34 +279,151 @@
                     });
                     return total;
                 });
-                // Linear regression
-                const reg = linearRegression(yearNums, y);
-                const forecast = forecastYears.map(yNum => reg.slope * yNum + reg.intercept);
+                let forecast = [];
+                let datasets = [
+                    {
+                        label: 'Actual',
+                        data: y.concat(Array(yearsAhead).fill(null)),
+                        borderColor: '#1976d2',
+                        backgroundColor: 'rgba(25,118,210,0.12)',
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    }
+                ];
+                if (chartType === 'linear') {
+                    const reg = linearRegression(yearNums, y);
+                    forecast = forecastYears.map(yNum => reg.slope * yNum + reg.intercept);
+                    datasets.push({
+                        label: 'Predicted (Linear)',
+                        data: Array(y.length).fill(null).concat(forecast),
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'rgba(211,47,47,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                } else if (chartType === 'exponential') {
+                    const reg = exponentialRegression(yearNums, y);
+                    forecast = forecastYears.map(yNum => reg.a * Math.exp(reg.b * yNum));
+                    datasets.push({
+                        label: 'Predicted (Exponential)',
+                        data: Array(y.length).fill(null).concat(forecast),
+                        borderColor: '#ff9800',
+                        backgroundColor: 'rgba(255,152,0,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                } else if (chartType === 'polynomial') {
+                    const reg = polynomialRegression(yearNums, y);
+                    forecast = forecastYears.map(yNum => reg.a * yNum * yNum + reg.b * yNum + reg.c);
+                    datasets.push({
+                        label: 'Predicted (Polynomial)',
+                        data: Array(y.length).fill(null).concat(forecast),
+                        borderColor: '#8e24aa',
+                        backgroundColor: 'rgba(142,36,170,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                } else if (chartType === 'movingavg') {
+                    const windowSize = 3;
+                    const ma = movingAverage(y, windowSize);
+                    forecast = Array(yearsAhead).fill(null); // No forecast, just show MA
+                    datasets.push({
+                        label: 'Moving Average',
+                        data: ma.concat(Array(yearsAhead).fill(null)),
+                        borderColor: '#388e3c',
+                        backgroundColor: 'rgba(56,142,60,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                } else if (chartType === 'interval') {
+                    const reg = linearRegression(yearNums, y);
+                    forecast = forecastYears.map(yNum => reg.slope * yNum + reg.intercept);
+                    const intervals = predictionInterval(yearNums, y, forecastYears);
+                    datasets.push({
+                        label: 'Predicted (Linear)',
+                        data: Array(y.length).fill(null).concat(forecast),
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'rgba(211,47,47,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                    datasets.push({
+                        label: 'Prediction Interval (95%)',
+                        data: Array(y.length).fill(null).concat(intervals.map(i => i[1])),
+                        borderColor: 'rgba(25,118,210,0.2)',
+                        backgroundColor: 'rgba(25,118,210,0.08)',
+                        borderDash: [2,2],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: '-1',
+                        spanGaps: true
+                    });
+                    datasets.push({
+                        label: 'Prediction Interval (5%)',
+                        data: Array(y.length).fill(null).concat(intervals.map(i => i[0])),
+                        borderColor: 'rgba(25,118,210,0.2)',
+                        backgroundColor: 'rgba(25,118,210,0.08)',
+                        borderDash: [2,2],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: '-1',
+                        spanGaps: true
+                    });
+                } else if (chartType === 'compare') {
+                    // Compare actual vs. all three predictions
+                    const regL = linearRegression(yearNums, y);
+                    const regE = exponentialRegression(yearNums, y);
+                    const regP = polynomialRegression(yearNums, y);
+                    const forecastL = forecastYears.map(yNum => regL.slope * yNum + regL.intercept);
+                    const forecastE = forecastYears.map(yNum => regE.a * Math.exp(regE.b * yNum));
+                    const forecastP = forecastYears.map(yNum => regP.a * yNum * yNum + regP.b * yNum + regP.c);
+                    datasets.push({
+                        label: 'Predicted (Linear)',
+                        data: Array(y.length).fill(null).concat(forecastL),
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'rgba(211,47,47,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                    datasets.push({
+                        label: 'Predicted (Exponential)',
+                        data: Array(y.length).fill(null).concat(forecastE),
+                        borderColor: '#ff9800',
+                        backgroundColor: 'rgba(255,152,0,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                    datasets.push({
+                        label: 'Predicted (Polynomial)',
+                        data: Array(y.length).fill(null).concat(forecastP),
+                        borderColor: '#8e24aa',
+                        backgroundColor: 'rgba(142,36,170,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                }
                 predictiveChart = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: allYears,
-                        datasets: [
-                            {
-                                label: 'Actual',
-                                data: y.concat(Array(yearsAhead).fill(null)),
-                                borderColor: '#1976d2',
-                                backgroundColor: 'rgba(25,118,210,0.12)',
-                                borderWidth: 3,
-                                pointRadius: 3,
-                                spanGaps: true
-                            },
-                            {
-                                label: 'Predicted',
-                                data: Array(y.length).fill(null).concat(forecast),
-                                borderColor: '#d32f2f',
-                                backgroundColor: 'rgba(211,47,47,0.12)',
-                                borderDash: [8,4],
-                                borderWidth: 3,
-                                pointRadius: 3,
-                                spanGaps: true
-                            }
-                        ]
+                        datasets: datasets
                     },
                     options: {
                         responsive: false,
@@ -209,33 +445,151 @@
                 const province = document.getElementById('provinceSelect').value;
                 const row = provinceData[province];
                 const y = yearColumns.map(year => row && row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0);
-                const reg = linearRegression(yearNums, y);
-                const forecast = forecastYears.map(yNum => reg.slope * yNum + reg.intercept);
+                let forecast = [];
+                let datasets = [
+                    {
+                        label: 'Actual',
+                        data: y.concat(Array(yearsAhead).fill(null)),
+                        borderColor: '#1976d2',
+                        backgroundColor: 'rgba(25,118,210,0.12)',
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    }
+                ];
+                if (chartType === 'linear') {
+                    const reg = linearRegression(yearNums, y);
+                    forecast = forecastYears.map(yNum => reg.slope * yNum + reg.intercept);
+                    datasets.push({
+                        label: 'Predicted (Linear)',
+                        data: Array(y.length).fill(null).concat(forecast),
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'rgba(211,47,47,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                } else if (chartType === 'exponential') {
+                    const reg = exponentialRegression(yearNums, y);
+                    forecast = forecastYears.map(yNum => reg.a * Math.exp(reg.b * yNum));
+                    datasets.push({
+                        label: 'Predicted (Exponential)',
+                        data: Array(y.length).fill(null).concat(forecast),
+                        borderColor: '#ff9800',
+                        backgroundColor: 'rgba(255,152,0,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                } else if (chartType === 'polynomial') {
+                    const reg = polynomialRegression(yearNums, y);
+                    forecast = forecastYears.map(yNum => reg.a * yNum * yNum + reg.b * yNum + reg.c);
+                    datasets.push({
+                        label: 'Predicted (Polynomial)',
+                        data: Array(y.length).fill(null).concat(forecast),
+                        borderColor: '#8e24aa',
+                        backgroundColor: 'rgba(142,36,170,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                } else if (chartType === 'movingavg') {
+                    const windowSize = 3;
+                    const ma = movingAverage(y, windowSize);
+                    forecast = Array(yearsAhead).fill(null); // No forecast, just show MA
+                    datasets.push({
+                        label: 'Moving Average',
+                        data: ma.concat(Array(yearsAhead).fill(null)),
+                        borderColor: '#388e3c',
+                        backgroundColor: 'rgba(56,142,60,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                } else if (chartType === 'interval') {
+                    const reg = linearRegression(yearNums, y);
+                    forecast = forecastYears.map(yNum => reg.slope * yNum + reg.intercept);
+                    const intervals = predictionInterval(yearNums, y, forecastYears);
+                    datasets.push({
+                        label: 'Predicted (Linear)',
+                        data: Array(y.length).fill(null).concat(forecast),
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'rgba(211,47,47,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                    datasets.push({
+                        label: 'Prediction Interval (95%)',
+                        data: Array(y.length).fill(null).concat(intervals.map(i => i[1])),
+                        borderColor: 'rgba(25,118,210,0.2)',
+                        backgroundColor: 'rgba(25,118,210,0.08)',
+                        borderDash: [2,2],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: '-1',
+                        spanGaps: true
+                    });
+                    datasets.push({
+                        label: 'Prediction Interval (5%)',
+                        data: Array(y.length).fill(null).concat(intervals.map(i => i[0])),
+                        borderColor: 'rgba(25,118,210,0.2)',
+                        backgroundColor: 'rgba(25,118,210,0.08)',
+                        borderDash: [2,2],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: '-1',
+                        spanGaps: true
+                    });
+                } else if (chartType === 'compare') {
+                    // Compare actual vs. all three predictions
+                    const regL = linearRegression(yearNums, y);
+                    const regE = exponentialRegression(yearNums, y);
+                    const regP = polynomialRegression(yearNums, y);
+                    const forecastL = forecastYears.map(yNum => regL.slope * yNum + regL.intercept);
+                    const forecastE = forecastYears.map(yNum => regE.a * Math.exp(regE.b * yNum));
+                    const forecastP = forecastYears.map(yNum => regP.a * yNum * yNum + regP.b * yNum + regP.c);
+                    datasets.push({
+                        label: 'Predicted (Linear)',
+                        data: Array(y.length).fill(null).concat(forecastL),
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'rgba(211,47,47,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                    datasets.push({
+                        label: 'Predicted (Exponential)',
+                        data: Array(y.length).fill(null).concat(forecastE),
+                        borderColor: '#ff9800',
+                        backgroundColor: 'rgba(255,152,0,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                    datasets.push({
+                        label: 'Predicted (Polynomial)',
+                        data: Array(y.length).fill(null).concat(forecastP),
+                        borderColor: '#8e24aa',
+                        backgroundColor: 'rgba(142,36,170,0.12)',
+                        borderDash: [8,4],
+                        borderWidth: 3,
+                        pointRadius: 3,
+                        spanGaps: true
+                    });
+                }
                 predictiveChart = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: allYears,
-                        datasets: [
-                            {
-                                label: 'Actual',
-                                data: y.concat(Array(yearsAhead).fill(null)),
-                                borderColor: '#1976d2',
-                                backgroundColor: 'rgba(25,118,210,0.12)',
-                                borderWidth: 3,
-                                pointRadius: 3,
-                                spanGaps: true
-                            },
-                            {
-                                label: 'Predicted',
-                                data: Array(y.length).fill(null).concat(forecast),
-                                borderColor: '#d32f2f',
-                                backgroundColor: 'rgba(211,47,47,0.12)',
-                                borderDash: [8,4],
-                                borderWidth: 3,
-                                pointRadius: 3,
-                                spanGaps: true
-                            }
-                        ]
+                        datasets: datasets
                     },
                     options: {
                         responsive: false,
@@ -269,6 +623,7 @@
             updatePredictiveChart();
         });
         document.getElementById('yearsAhead').addEventListener('change', updatePredictiveChart);
+        document.getElementById('chartType').addEventListener('change', updatePredictiveChart);
         // Load CSV data
         Papa.parse('../province-data.csv', {
             header: true,
