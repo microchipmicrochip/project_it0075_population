@@ -146,6 +146,16 @@
         let provinceData = {};
         let regionSet = new Set();
 
+        // --- Province name normalization for robust matching ---
+function normalizeProvinceName(name) {
+    return (name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '') // Remove all non-alphanumeric
+        .replace(/province|city/g, '') // Remove common suffixes/words
+        .replace(/\s+/g, '') // Remove spaces
+        .trim();
+}
+
 
         // Chart.js chart instances
         let provinceChart = null;
@@ -278,13 +288,15 @@
             geojsonLayer = L.geoJSON(geojsonDataCache, {
                 filter: function(feature) {
                     const name = feature.properties.NAME_1 || feature.properties.name || feature.properties.Name;
-                    const data = provinceData[name] || {};
+                    const normName = normalizeProvinceName(name);
+                    const data = provinceData[normName] || {};
                     if (!regionFilter || regionFilter === 'all') return true;
                     return data.region === regionFilter;
                 },
                 style: function(feature) {
                     const name = feature.properties.NAME_1 || feature.properties.name || feature.properties.Name;
-                    const data = provinceData[name] || {};
+                    const normName = normalizeProvinceName(name);
+                    const data = provinceData[normName] || {};
                     return {
                         color: data.visited === 'Yes' ? '#388e3c' : '#1976d2',
                         weight: 2,
@@ -293,8 +305,9 @@
                 },
                 onEachFeature: function(feature, layer) {
                     const name = feature.properties.NAME_1 || feature.properties.name || feature.properties.Name;
+                    const normName = normalizeProvinceName(name);
                     function getDetailsHTML() {
-                        const data = provinceData[name] || {};
+                        const data = provinceData[normName] || {};
                         let html = `<div><b style='font-size:1.1em;'>${name}</b>`;
                         // Only show region from CSV, not from GeoJSON, and only once
                         if (data.region) html += `<br>${data.region}`;
@@ -408,7 +421,8 @@
                 }
                 results.data.forEach(row => {
                     if (row.province) {
-                        provinceData[row.province.trim()] = row;
+                        const normName = normalizeProvinceName(row.province.trim());
+                        provinceData[normName] = row;
                         if (row.region) regionSet.add(row.region.trim());
                     }
                 });
