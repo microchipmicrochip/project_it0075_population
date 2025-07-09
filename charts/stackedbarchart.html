@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Population Stacked Bar Chart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background: #f4f6fa;
+            margin: 0;
+            padding: 0;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 24px;
+            color: #1976d2;
+            letter-spacing: 1px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0 10px 0;
+            gap: 10px;
+        }
+        select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #b0bec5;
+            font-size: 1rem;
+            background: #fff;
+            color: #333;
+            min-width: 120px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        #stackedBarChartBox {
+            width: 90vw;
+            max-width: 1000px;
+            margin: 0 auto 24px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(25, 118, 210, 0.08);
+            border: 1px solid #e3eaf2;
+            padding: 32px 16px 24px 16px;
+        }
+        #backLink {
+            display: block;
+            margin: 18px auto 0 auto;
+            text-align: center;
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1.08rem;
+        }
+        @media (max-width: 700px) {
+            #stackedBarChartBox { width: 98vw; }
+            .controls { flex-direction: column; gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+        }
+
+
+    <h2>Population Stacked Bar Chart</h2>
+    <div class="controls">
+        <label for="modeSelect">Mode:</label>
+        <select id="modeSelect">
+            <option value="byRegion">By Region (Provinces stacked)</option>
+            <option value="allRegions">All Regions (Regions stacked)</option>
+        </select>
+        <span id="regionControl" style="display:inline;">
+            <label for="regionSelect">Region:</label>
+            <select id="regionSelect"></select>
+        </span>
+    </div>
+    <div id="stackedBarChartBox">
+        <canvas id="stackedBarChart" width="1000" height="480"></canvas>
+    </div>
+    <a id="backLink" href="../chart-navigation.html">&larr; Back to Chart Navigation</a>
+    <script src="../papaparse-loader.js"></script>
+    <script>
+    function waitForPapaParse(callback) {
+        if (window.papaParseLoaded && window.Papa) {
+            callback();
+        } else {
+            setTimeout(() => waitForPapaParse(callback), 50);
+        }
+    }
+    waitForPapaParse(function() {
+        let provinceData = {};
+        let regionSet = new Set();
+        let yearColumns = [];
+        let stackedBarChart = null;
+
+        function populateRegionDropdown() {
+            const regionSelect = document.getElementById('regionSelect');
+            regionSelect.innerHTML = '';
+            Array.from(regionSet).sort().forEach(region => {
+                const opt = document.createElement('option');
+                opt.value = region;
+                opt.textContent = region;
+                regionSelect.appendChild(opt);
+            });
+        }
+
+        function updateStackedBarChart() {
+            const mode = document.getElementById('modeSelect').value;
+            if (mode === 'byRegion') {
+                document.getElementById('regionControl').style.display = 'inline';
+                const region = document.getElementById('regionSelect').value;
+                // Get all provinces in the selected region
+                const provinces = Object.values(provinceData)
+                    .filter(row => row.region === region)
+                    .map(row => row.province)
+                    .sort();
+                // For each province, get population for each year
+                const datasets = provinces.map((province, idx) => {
+                    const row = provinceData[province];
+                    return {
+                        label: province,
+                        data: yearColumns.map(year => row && row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0),
+                        backgroundColor: `hsl(${(idx*360/provinces.length)},70%,60%)`,
+                        borderWidth: 1
+                    };
+                });
+                const ctx = document.getElementById('stackedBarChart').getContext('2d');
+                if (stackedBarChart) stackedBarChart.destroy();
+                stackedBarChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: yearColumns,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { color: '#1976d2', font: { size: 13 } } },
+                            tooltip: { enabled: true }
+                        },
+                        scales: {
+                            x: { stacked: true, ticks: { color: '#1976d2', font: { size: 13 } } },
+                            y: { stacked: true, beginAtZero: true, ticks: { color: '#388e3c', font: { size: 13 } } }
+                        }
+                    }
+                });
+            } else if (mode === 'allRegions') {
+                document.getElementById('regionControl').style.display = 'none';
+                // Get all regions
+                const regions = Array.from(regionSet).sort();
+                // For each region, get population for each year (sum of all provinces in that region)
+                const datasets = regions.map((region, idx) => {
+                    return {
+                        label: region,
+                        data: yearColumns.map(year => {
+                            let total = 0;
+                            Object.values(provinceData).forEach(row => {
+                                if (row.region === region && row[year] && !isNaN(Number(row[year]))) {
+                                    total += Number(row[year]);
+                                }
+                            });
+                            return total;
+                        }),
+                        backgroundColor: `hsl(${(idx*360/regions.length)},70%,60%)`,
+                        borderWidth: 1
+                    };
+                });
+                const ctx = document.getElementById('stackedBarChart').getContext('2d');
+                if (stackedBarChart) stackedBarChart.destroy();
+                stackedBarChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: yearColumns,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { color: '#1976d2', font: { size: 13 } } },
+                            tooltip: { enabled: true }
+                        },
+                        scales: {
+                            x: { stacked: true, ticks: { color: '#1976d2', font: { size: 13 } } },
+                            y: { stacked: true, beginAtZero: true, ticks: { color: '#388e3c', font: { size: 13 } } }
+                        }
+                    }
+                });
+            }
+        }
+
+        document.getElementById('regionSelect').addEventListener('change', updateStackedBarChart);
+        document.getElementById('modeSelect').addEventListener('change', updateStackedBarChart);
+
+        // Load CSV data
+        Papa.parse('../province-data.csv', {
+            header: true,
+            download: true,
+            complete: function(results) {
+                provinceData = {};
+                regionSet = new Set();
+                yearColumns = [];
+                if (results.meta && results.meta.fields) {
+                    yearColumns = results.meta.fields.filter(f => /^Jul-\d{2}$/.test(f));
+                }
+                // Always ensure Jul-25 is present and at the end
+                if (!yearColumns.includes('Jul-25')) {
+                    yearColumns.push('Jul-25');
+                } else {
+                    yearColumns = yearColumns.filter(y => y !== 'Jul-25').concat(['Jul-25']);
+                }
+                results.data.forEach(row => {
+                    if (row.province) {
+                        provinceData[row.province.trim()] = row;
+                        if (row.region) regionSet.add(row.region.trim());
+                    }
+                });
+                populateRegionDropdown();
+                document.getElementById('regionSelect').value = Array.from(regionSet)[0];
+                updateStackedBarChart();
+            }
+        });
+    });
+    </script>
+</body>
+</html>

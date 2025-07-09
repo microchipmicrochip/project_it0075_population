@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Population Scatter Plot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background: #f4f6fa;
+            margin: 0;
+            padding: 0;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 24px;
+            color: #1976d2;
+            letter-spacing: 1px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0 10px 0;
+            gap: 10px;
+        }
+        select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #b0bec5;
+            font-size: 1rem;
+            background: #fff;
+            color: #333;
+            min-width: 120px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        #scatterPlotBox {
+            width: 90vw;
+            max-width: 1000px;
+            margin: 0 auto 24px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(25, 118, 210, 0.08);
+            border: 1px solid #e3eaf2;
+            padding: 32px 16px 24px 16px;
+        }
+        #backLink {
+            display: block;
+            margin: 18px auto 0 auto;
+            text-align: center;
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1.08rem;
+        }
+        @media (max-width: 700px) {
+            #scatterPlotBox { width: 98vw; }
+            .controls { flex-direction: column; gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <h2>Population Scatter Plot</h2>
+    <div class="controls">
+        <label for="modeSelect">Mode:</label>
+        <select id="modeSelect">
+            <option value="region">By Region</option>
+            <option value="province">By Province in Region</option>
+        </select>
+        <span id="regionControl" style="display:inline;">
+            <label for="regionSelect">Region:</label>
+            <select id="regionSelect"></select>
+        </span>
+        <span id="yearControl" style="display:inline;">
+            <label for="yearSelect">Year:</label>
+            <select id="yearSelect"></select>
+        </span>
+    </div>
+    <div id="scatterPlotBox">
+        <canvas id="scatterPlot" width="1000" height="480"></canvas>
+    </div>
+    <a id="backLink" href="../chart-navigation.html">&larr; Back to Chart Navigation</a>
+    <script src="../papaparse-loader.js"></script>
+    <script>
+    function waitForPapaParse(callback) {
+        if (window.papaParseLoaded && window.Papa) {
+            callback();
+        } else {
+            setTimeout(() => waitForPapaParse(callback), 50);
+        }
+    }
+    waitForPapaParse(function() {
+        let provinceData = {};
+        let regionSet = new Set();
+        let yearColumns = [];
+        let scatterPlot = null;
+        function populateRegionDropdown() {
+            const regionSelect = document.getElementById('regionSelect');
+            regionSelect.innerHTML = '';
+            Array.from(regionSet).sort().forEach(region => {
+                const opt = document.createElement('option');
+                opt.value = region;
+                opt.textContent = region;
+                regionSelect.appendChild(opt);
+            });
+        }
+        function populateYearDropdown() {
+            const yearSelect = document.getElementById('yearSelect');
+            yearSelect.innerHTML = '';
+            yearColumns.forEach(year => {
+                const opt = document.createElement('option');
+                opt.value = year;
+                opt.textContent = year;
+                yearSelect.appendChild(opt);
+            });
+            yearSelect.value = yearColumns[yearColumns.length-1];
+        }
+        function getGrowthRate(row, yearIdx) {
+            if (yearIdx === 0) return 0;
+            const prev = Number(row[yearColumns[yearIdx-1]]);
+            const curr = Number(row[yearColumns[yearIdx]]);
+            if (!prev || !curr) return 0;
+            return ((curr - prev) / prev * 100).toFixed(2);
+        }
+        function updateScatterPlot() {
+            const mode = document.getElementById('modeSelect').value;
+            const ctx = document.getElementById('scatterPlot').getContext('2d');
+            if (scatterPlot) scatterPlot.destroy();
+            const year = document.getElementById('yearSelect').value;
+            const yearIdx = yearColumns.indexOf(year);
+            if (mode === 'region') {
+                document.getElementById('regionControl').style.display = 'none';
+                // By Region: x = region index, y = population, point size = growth rate
+                const regions = Array.from(regionSet).sort();
+                const data = regions.map((region, idx) => {
+                    let total = 0, prevTotal = 0;
+                    Object.values(provinceData).forEach(row => {
+                        if (row.region === region && row[year] && !isNaN(Number(row[year]))) {
+                            total += Number(row[year]);
+                            if (yearIdx > 0 && row[yearColumns[yearIdx-1]] && !isNaN(Number(row[yearColumns[yearIdx-1]]))) {
+                                prevTotal += Number(row[yearColumns[yearIdx-1]]);
+                            }
+                        }
+                    });
+                    let growth = (yearIdx > 0 && prevTotal) ? ((total - prevTotal) / prevTotal * 100) : 0;
+                    return {
+                        x: idx+1,
+                        y: total,
+                        r: Math.max(5, Math.abs(growth)),
+                        region: region,
+                        growth: growth.toFixed(2)
+                    };
+                });
+                scatterPlot = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Regions',
+                            data: data,
+                            backgroundColor: data.map((_, idx) => `hsl(${(idx*360/regions.length)},70%,60%)`),
+                            pointRadius: data.map(d => d.r),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const d = context.raw;
+                                        return `${d.region}: ${d.y.toLocaleString()} (Growth: ${d.growth}%)`;
+                                    }
+                                }
+                            },
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'Region Index' },
+                                ticks: { color: '#1976d2', font: { size: 13 }, callback: function(val, idx) { return regions[idx] || val; } },
+                                min: 0,
+                                max: regions.length+1
+                            },
+                            y: {
+                                title: { display: true, text: 'Population' },
+                                beginAtZero: true,
+                                ticks: { color: '#388e3c', font: { size: 13 } }
+                            }
+                        }
+                    }
+                });
+            } else if (mode === 'province') {
+                document.getElementById('regionControl').style.display = 'inline';
+                const region = document.getElementById('regionSelect').value;
+                // By Province: x = province index, y = population, point size = growth rate
+                const provinces = Object.values(provinceData)
+                    .filter(row => row.region === region)
+                    .map(row => row.province)
+                    .sort();
+                const data = provinces.map((province, idx) => {
+                    const row = provinceData[province];
+                    const y = row && row[year] && !isNaN(Number(row[year])) ? Number(row[year]) : 0;
+                    let growth = 0;
+                    if (yearIdx > 0 && row && row[yearColumns[yearIdx-1]] && !isNaN(Number(row[yearColumns[yearIdx-1]]))) {
+                        const prev = Number(row[yearColumns[yearIdx-1]]);
+                        growth = prev ? ((y - prev) / prev * 100) : 0;
+                    }
+                    return {
+                        x: idx+1,
+                        y: y,
+                        r: Math.max(5, Math.abs(growth)),
+                        province: province,
+                        growth: growth.toFixed(2)
+                    };
+                });
+                scatterPlot = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Provinces',
+                            data: data,
+                            backgroundColor: data.map((_, idx) => `hsl(${(idx*360/provinces.length)},70%,60%)`),
+                            pointRadius: data.map(d => d.r),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const d = context.raw;
+                                        return `${d.province}: ${d.y.toLocaleString()} (Growth: ${d.growth}%)`;
+                                    }
+                                }
+                            },
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'Province Index' },
+                                ticks: { color: '#1976d2', font: { size: 13 }, callback: function(val, idx) { return provinces[idx] || val; } },
+                                min: 0,
+                                max: provinces.length+1
+                            },
+                            y: {
+                                title: { display: true, text: 'Population' },
+                                beginAtZero: true,
+                                ticks: { color: '#388e3c', font: { size: 13 } }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        document.getElementById('regionSelect').addEventListener('change', updateScatterPlot);
+        document.getElementById('yearSelect').addEventListener('change', updateScatterPlot);
+        document.getElementById('modeSelect').addEventListener('change', function() {
+            const mode = this.value;
+            if (mode === 'province') {
+                document.getElementById('regionControl').style.display = 'inline';
+            } else {
+                document.getElementById('regionControl').style.display = 'none';
+            }
+            updateScatterPlot();
+        });
+        // Load CSV data
+        Papa.parse('../province-data.csv', {
+            header: true,
+            download: true,
+            complete: function(results) {
+                provinceData = {};
+                regionSet = new Set();
+                yearColumns = [];
+                if (results.meta && results.meta.fields) {
+                    yearColumns = results.meta.fields.filter(f => /^Jul-\d{2}$/.test(f));
+                }
+                // Always ensure Jul-25 is present and at the end
+                if (!yearColumns.includes('Jul-25')) {
+                    yearColumns.push('Jul-25');
+                } else {
+                    yearColumns = yearColumns.filter(y => y !== 'Jul-25').concat(['Jul-25']);
+                }
+                results.data.forEach(row => {
+                    if (row.province) {
+                        provinceData[row.province.trim()] = row;
+                        if (row.region) regionSet.add(row.region.trim());
+                    }
+                });
+                populateRegionDropdown();
+                populateYearDropdown();
+                document.getElementById('regionSelect').value = Array.from(regionSet)[0];
+                updateScatterPlot();
+            }
+        });
+    });
+    </script>
+</body>
+</html>
